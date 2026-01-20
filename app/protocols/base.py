@@ -290,6 +290,21 @@ class ProtocolHandler(ABC):
                     
                     bot_db_id = bot.id
                     
+                    # Enrich with IP reputation (fire-and-forget)
+                    if is_new_bot:
+                        try:
+                            from app.core.enrichment import enrich_bot_with_ip_reputation
+                            # Create background task for IP enrichment (non-blocking)
+                            asyncio.create_task(
+                                enrich_bot_with_ip_reputation(
+                                    bot.ip_address,
+                                    bot,
+                                    session
+                                )
+                            )
+                        except Exception as e:
+                            logger.debug(f"IP enrichment task creation failed: {e}")
+                    
                     # Broadcast new beacon event
                     if is_new_bot:
                         await manager.broadcast("new_beacon", {
@@ -300,12 +315,50 @@ class ProtocolHandler(ABC):
                             "country": bot.country,
                             "country_code": bot.country_code
                         })
+                        
+                        # Send Telegram notification for new infection
+                        try:
+                            from app.core.notifier import send_notification
+                            yara_info = f"\n<b>YARA:</b> {parsed_data.get('yara_matches', [])}" if parsed_data.get('yara_matches') else ""
+                            await send_notification(
+                                title="🦠 New Infection Detected",
+                                message=(
+                                    f"<b>Protocol:</b> {bot.protocol}\n"
+                                    f"<b>IP:</b> {bot.ip_address}\n"
+                                    f"<b>Hostname:</b> {bot.hostname or 'N/A'}\n"
+                                    f"<b>Bot ID:</b> {bot.bot_id or f'BOT-{bot.id}'}"
+                                    f"{yara_info}"
+                                ),
+                                level="WARNING"
+                            )
+                        except Exception as e:
+                            logger.debug(f"Telegram notification failed (non-critical): {e}")
                     
                     # Store logs (keystrokes, etc.)
                     for log_entry in parsed_data.get("logs", []):
                         log_entry["bot_id"] = bot_db_id
                         log = Log(**log_entry)
                         session.add(log)
+                        
+                        # Enrich with VirusTotal hash check if keystroke/clipboard data exists
+                        # Fire-and-forget task for payload analysis
+                        keystroke_data = log_entry.get("keystroke_data")
+                        clipboard_data = log_entry.get("clipboard_data")
+                        
+                        if keystroke_data and len(keystroke_data) > 100:
+                            # Analyze larger keystroke payloads
+                            try:
+                                from app.core.enrichment import enrich_payload_with_hash_check
+                                payload_bytes = keystroke_data.encode('utf-8') if isinstance(keystroke_data, str) else keystroke_data
+                                asyncio.create_task(
+                                    enrich_payload_with_hash_check(
+                                        payload_bytes,
+                                        log,
+                                        session
+                                    )
+                                )
+                            except Exception as e:
+                                logger.debug(f"VT enrichment task creation failed: {e}")
                         
                         # Broadcast new log event
                         await manager.broadcast("new_log", {

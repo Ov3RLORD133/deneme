@@ -80,6 +80,26 @@ class Settings(BaseSettings):
         description="Dashboard auto-refresh interval in seconds"
     )
     
+    # Telegram Notifications
+    telegram_bot_token: str = Field(
+        default="",
+        description="Telegram Bot API token from @BotFather (leave empty to disable notifications)"
+    )
+    telegram_chat_id: str = Field(
+        default="",
+        description="Telegram Chat ID where alerts will be sent"
+    )
+    
+    # Threat Intelligence APIs
+    virustotal_api_key: str = Field(
+        default="",
+        description="VirusTotal API key for file hash analysis (leave empty to disable)"
+    )
+    abuseipdb_api_key: str = Field(
+        default="",
+        description="AbuseIPDB API key for IP reputation checks (leave empty to disable)"
+    )
+    
     model_config = SettingsConfigDict(
         env_prefix="KEYCHASER_",
         env_file=".env",

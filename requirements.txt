@@ -28,6 +28,7 @@ yara-python==4.5.0
 
 # Networking & Async
 aiofiles==23.2.1
+httpx==0.26.0
 
 # Development & Code Quality
 black==24.1.1
