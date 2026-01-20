@@ -1,0 +1,194 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Global Styles - The Red Team Aesthetic */
+@layer base {
+  * {
+    @apply border-ops-border;
+  }
+  
+  body {
+    @apply bg-ops-black text-gray-100 font-mono;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+  }
+  
+  /* Custom Scrollbar */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-ops-black;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-ops-border rounded;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-600;
+  }
+}
+
+@layer components {
+  /* Terminal/Command Line Aesthetic */
+  .terminal-output {
+    @apply bg-ops-gray border border-ops-border rounded p-4 overflow-auto;
+    font-variant-ligatures: none;
+  }
+  
+  /* Glowing Effect for Active Elements */
+  .glow-green {
+    text-shadow: 0 0 10px theme('colors.ops-green'),
+                 0 0 20px theme('colors.ops-green');
+  }
+  
+  .glow-red {
+    text-shadow: 0 0 10px theme('colors.ops-red'),
+                 0 0 20px theme('colors.ops-red');
+  }
+  
+  .glow-cyan {
+    text-shadow: 0 0 10px theme('colors.ops-cyan'),
+                 0 0 20px theme('colors.ops-cyan');
+  }
+  
+  /* Border Glow */
+  .border-glow-green {
+    box-shadow: 0 0 5px theme('colors.ops-green'),
+                inset 0 0 5px rgba(0, 255, 65, 0.1);
+  }
+  
+  .border-glow-red {
+    box-shadow: 0 0 5px theme('colors.ops-red'),
+                inset 0 0 5px rgba(255, 0, 0, 0.1);
+  }
+  
+  /* Scanline Effect (Optional) */
+  .scanlines::before {
+    content: '';
+    @apply absolute top-0 left-0 w-full h-full pointer-events-none opacity-10;
+    background: linear-gradient(
+      to bottom,
+      transparent 0%,
+      rgba(0, 255, 65, 0.1) 50%,
+      transparent 100%
+    );
+    background-size: 100% 4px;
+    animation: scanline 8s linear infinite;
+  }
+  
+  /* Hex Viewer Styles */
+  .hex-byte {
+    @apply inline-block w-8 text-center cursor-pointer transition-colors;
+  }
+  
+  .hex-byte:hover {
+    @apply bg-ops-cyan bg-opacity-20 text-ops-cyan;
+  }
+  
+  .hex-byte.selected {
+    @apply bg-ops-green bg-opacity-20 text-ops-green;
+  }
+  
+  /* Data Grid Styles */
+  .data-grid {
+    @apply w-full border-collapse;
+  }
+  
+  .data-grid th {
+    @apply bg-ops-gray text-ops-green border-b border-ops-border px-4 py-3 text-left text-xs uppercase tracking-wider;
+  }
+  
+  .data-grid td {
+    @apply border-b border-ops-border px-4 py-3 text-sm;
+  }
+  
+  .data-grid tbody tr {
+    @apply hover:bg-ops-gray hover:bg-opacity-50 cursor-pointer transition-colors;
+  }
+  
+  /* Status Indicators */
+  .status-dot {
+    @apply inline-block w-2 h-2 rounded-full mr-2;
+  }
+  
+  .status-active {
+    @apply bg-ops-green;
+    animation: pulse-slow 2s infinite;
+  }
+  
+  .status-inactive {
+    @apply bg-gray-600;
+  }
+  
+  .status-alert {
+    @apply bg-ops-red;
+    animation: pulse 1s infinite;
+  }
+  
+  /* Card Component */
+  .ops-card {
+    @apply bg-ops-gray border border-ops-border rounded-lg p-4;
+  }
+  
+  .ops-card-header {
+    @apply text-ops-green text-xs uppercase tracking-wider mb-2 flex items-center justify-between;
+  }
+  
+  /* Button Styles */
+  .ops-button {
+    @apply px-4 py-2 bg-ops-gray border border-ops-border rounded text-sm font-medium transition-all;
+  }
+  
+  .ops-button:hover {
+    @apply border-ops-green text-ops-green;
+  }
+  
+  .ops-button-primary {
+    @apply ops-button border-ops-green text-ops-green;
+  }
+  
+  .ops-button-danger {
+    @apply ops-button border-ops-red text-ops-red;
+  }
+  
+  /* Input Styles */
+  .ops-input {
+    @apply bg-ops-black border border-ops-border rounded px-3 py-2 text-sm focus:outline-none focus:border-ops-cyan;
+  }
+}
+
+/* Leaflet Map Dark Theme Overrides */
+.leaflet-container {
+  @apply bg-ops-black;
+}
+
+.leaflet-popup-content-wrapper {
+  @apply bg-ops-gray border border-ops-border rounded;
+}
+
+.leaflet-popup-content {
+  @apply text-gray-100 font-mono text-xs;
+}
+
+.leaflet-popup-tip {
+  @apply bg-ops-gray;
+}
+
+/* Animation for new log entries */
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.log-entry-new {
+  animation: slideIn 0.3s ease-out;
+}

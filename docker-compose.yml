@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  keychaser:
+    build: .
+    container_name: keychaser_sinkhole
+    ports:
+      - "8000:8000"      # FastAPI Dashboard
+      - "4444:4444"      # Example Keylogger Protocol
+      - "5555:5555"      # Reserved for additional protocols
+      - "6666:6666"      # Reserved for additional protocols
+    volumes:
+      - ./app:/app/app
+      - ./data:/app/data
+    environment:
+      - KEYCHASER_DB_PATH=/app/data/keychaser.db
+      - KEYCHASER_LOG_PATH=/app/data/logs
+      - KEYCHASER_HOST=0.0.0.0
+      - KEYCHASER_API_PORT=8000
+    restart: unless-stopped
+    networks:
+      - keychaser_net
+    command: python -m app.main
+
+networks:
+  keychaser_net:
+    driver: bridge
