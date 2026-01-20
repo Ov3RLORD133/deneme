@@ -32,6 +32,15 @@ class Bot(Base):
     port = Column(Integer, nullable=False)
     protocol = Column(String(50), nullable=False, index=True)  # Malware family
     
+    # Geolocation (enriched from GeoIP)
+    country = Column(String(100), nullable=True)
+    country_code = Column(String(2), nullable=True, index=True)
+    city = Column(String(100), nullable=True)
+    latitude = Column(String(20), nullable=True)  # Store as string to avoid precision issues
+    longitude = Column(String(20), nullable=True)
+    continent = Column(String(50), nullable=True)
+    timezone = Column(String(50), nullable=True)
+    
     # Victim System Information
     bot_id = Column(String(255), unique=True, index=True)  # Unique malware-assigned ID
     hostname = Column(String(255), nullable=True)
@@ -68,6 +77,13 @@ class BotBase(BaseModel):
     malware_version: Optional[str] = Field(None, description="Malware version string")
     campaign_id: Optional[str] = Field(None, description="Campaign/builder identifier")
     extra_data: Optional[str] = Field(None, description="Additional JSON data")
+    country: Optional[str] = Field(None, description="Country name from GeoIP")
+    country_code: Optional[str] = Field(None, description="ISO country code")
+    city: Optional[str] = Field(None, description="City name from GeoIP")
+    latitude: Optional[str] = Field(None, description="Latitude coordinate")
+    longitude: Optional[str] = Field(None, description="Longitude coordinate")
+    continent: Optional[str] = Field(None, description="Continent name")
+    timezone: Optional[str] = Field(None, description="Timezone identifier")
 
 
 class BotCreate(BotBase):

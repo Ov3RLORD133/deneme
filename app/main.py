@@ -14,13 +14,14 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import List
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.core.config import settings
 from app.core.database import close_db, get_session_factory, init_db
 from app.core.logging import get_logger
+from app.core.websocket import get_connection_manager
 from app.protocols.base import ProtocolHandler
 
 logger = get_logger(__name__)
@@ -179,11 +180,41 @@ templates_path.mkdir(exist_ok=True)
 templates = Jinja2Templates(directory=str(templates_path))
 
 # Register API routers
-from app.api import bots, logs, stats
+from app.api import bots, logs, stats, auth
 
+app.include_router(auth.router, prefix="/api", tags=["authentication"])
 app.include_router(bots.router, prefix="/api", tags=["bots"])
 app.include_router(logs.router, prefix="/api", tags=["logs"])
 app.include_router(stats.router, prefix="/api", tags=["stats"])
+
+
+@app.websocket("/ws/events")
+async def websocket_endpoint(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time event streaming to frontend.
+    
+    Clients connect to receive live updates about:
+    - New bot connections (new_beacon)
+    - New log entries (new_log)
+    - New credentials (new_credential)
+    """
+    manager = get_connection_manager()
+    await manager.connect(websocket)
+    
+    try:
+        # Keep connection alive and handle incoming messages
+        while True:
+            # Wait for messages from client (ping/pong, etc.)
+            data = await websocket.receive_text()
+            # Echo back (optional)
+            if data == "ping":
+                await websocket.send_text("pong")
+    
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
+        await manager.disconnect(websocket)
 
 
 @app.get("/")

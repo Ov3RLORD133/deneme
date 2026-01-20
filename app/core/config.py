@@ -50,8 +50,14 @@ class Settings(BaseSettings):
         description="Directory containing protocol handlers"
     )
     enabled_protocols: List[str] = Field(
-        default=["example_logger"],
+        default=["example_logger", "agent_tesla"],
         description="List of enabled protocol modules"
+    )
+    
+    # Authentication & Security
+    secret_key: str = Field(
+        default="CHANGE_ME_IN_PRODUCTION_USE_openssl_rand_hex_32",
+        description="JWT secret key (32+ chars, use `openssl rand -hex 32`)"
     )
     
     # Security Settings
