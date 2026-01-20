@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
-import { ChevronDown, ChevronUp, Activity, AlertCircle } from 'lucide-react';
+import { ChevronDown, ChevronUp, Activity, AlertCircle, Download } from 'lucide-react';
 import { botsApi } from '@/lib/api';
 import type { Bot } from '@/types';
 
@@ -19,6 +19,45 @@ interface BotDataGridProps {
 
 type SortField = 'last_seen' | 'ip_address' | 'protocol' | 'bot_id';
 type SortDirection = 'asc' | 'desc';
+
+/**
+ * Download forensic data export for a bot
+ */
+const handleExportBot = async (botId: number, event: React.MouseEvent) => {
+  event.stopPropagation(); // Prevent row click
+  
+  try {
+    const response = await fetch(`/api/bots/${botId}/export`, {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('keychaser_token')}`,
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error('Export failed');
+    }
+    
+    // Get filename from Content-Disposition header
+    const contentDisposition = response.headers.get('Content-Disposition');
+    const filename = contentDisposition
+      ? contentDisposition.split('filename=')[1].replace(/"/g, '')
+      : `bot_${botId}_export.json`;
+    
+    // Download file
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
+  } catch (error) {
+    console.error('Export failed:', error);
+    alert('Failed to export bot data');
+  }
+};
 
 export const BotDataGrid: React.FC<BotDataGridProps> = ({ onBotSelect, protocol }) => {
   const [sortField, setSortField] = useState<SortField>('last_seen');
@@ -154,12 +193,13 @@ export const BotDataGrid: React.FC<BotDataGridProps> = ({ onBotSelect, protocol 
               >
                 Last Seen {renderSortIcon('last_seen')}
               </th>
+              <th className="w-20">Actions</th>
             </tr>
           </thead>
           <tbody>
             {sortedBots.length === 0 ? (
               <tr>
-                <td colSpan={8} className="text-center py-8 text-gray-500">
+                <td colSpan={9} className="text-center py-8 text-gray-500">
                   No bots detected yet
                 </td>
               </tr>
@@ -199,6 +239,15 @@ export const BotDataGrid: React.FC<BotDataGridProps> = ({ onBotSelect, protocol 
                   </td>
                   <td className="text-gray-500 text-xs">
                     {formatDistanceToNow(new Date(bot.last_seen), { addSuffix: true })}
+                  </td>
+                  <td>
+                    <button
+                      onClick={(e) => handleExportBot(bot.id, e)}
+                      className="p-1.5 hover:bg-ops-green/10 border border-ops-green/30 rounded transition-colors group/btn"
+                      title="Export forensic data"
+                    >
+                      <Download className="w-4 h-4 text-ops-green group-hover/btn:text-ops-cyan" />
+                    </button>
                   </td>
                 </tr>
               ))

@@ -37,6 +37,15 @@ data/
 *.db
 *.log
 
+# Alembic
+# Keep migrations/versions/ files, ignore everything else
+migrations/__pycache__/
+migrations/*.pyc
+
+# YARA
+# Keep .yar rules, ignore compiled rules
+rules/*.compiled
+
 # Environment
 .env
 .env.local

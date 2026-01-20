@@ -152,6 +152,20 @@ class ProtocolHandler(ABC):
                 logger.error(f"[{self.name}] Decryption failed for {client_ip}: {e}")
                 return
             
+            # YARA malware signature scanning
+            yara_matches = []
+            try:
+                from app.core.yara_engine import get_yara_engine
+                yara_engine = get_yara_engine()
+                yara_matches = await yara_engine.scan_payload(decrypted_data)
+                if yara_matches:
+                    logger.warning(
+                        f"[{self.name}] YARA DETECTION from {client_ip}: "
+                        f"Matched rules: {', '.join(yara_matches)}"
+                    )
+            except Exception as e:
+                logger.debug(f"[{self.name}] YARA scan error (non-critical): {e}")
+            
             # Parse into structured data
             try:
                 parsed_data = await self.parse(decrypted_data)
@@ -161,6 +175,11 @@ class ProtocolHandler(ABC):
                 parsed_data["bot_info"]["ip_address"] = client_ip
                 parsed_data["bot_info"]["port"] = client_port
                 parsed_data["bot_info"]["protocol"] = self.name
+                
+                # Add YARA detection results
+                if yara_matches:
+                    parsed_data["bot_info"]["yara_tags"] = ",".join(yara_matches)
+                    parsed_data["yara_matches"] = yara_matches
             except Exception as e:
                 logger.error(f"[{self.name}] Parsing failed for {client_ip}: {e}")
                 return

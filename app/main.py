@@ -119,6 +119,16 @@ async def lifespan(app: FastAPI):
     # Initialize database
     await init_db()
     
+    # Initialize YARA engine for malware detection
+    logger.info("Initializing YARA malware detection engine...")
+    from app.core.yara_engine import get_yara_engine
+    yara_engine = get_yara_engine()
+    yara_initialized = await yara_engine.initialize()
+    if yara_initialized:
+        logger.info(f"✓ YARA engine ready with {yara_engine.get_stats()['rule_count']} rule file(s)")
+    else:
+        logger.warning("⚠ YARA engine disabled (no rules found)")
+    
     # Load protocol handlers
     handlers = load_protocol_handlers()
     

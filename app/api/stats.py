@@ -41,19 +41,26 @@ async def get_overview(db: AsyncSession = Depends(get_db)):
         select(func.count(Bot.id)).where(Bot.last_seen >= one_hour_ago)
     )
     
-    # Protocol distribution
+    # Protocol distribution for charts
     protocol_result = await db.execute(
         select(Bot.protocol, func.count(Bot.id))
         .group_by(Bot.protocol)
     )
-    protocols = {row[0]: row[1] for row in protocol_result}
+    protocol_dict = {row[0]: row[1] for row in protocol_result}
+    
+    # Format protocol data for pie charts
+    protocol_distribution = [
+        {"name": protocol, "value": count}
+        for protocol, count in protocol_dict.items()
+    ]
     
     return {
         "total_bots": total_bots,
         "active_bots": active_bots,
         "total_logs": total_logs,
         "total_credentials": total_credentials,
-        "protocols": protocols,
+        "protocols": protocol_dict,  # Legacy format
+        "protocol_distribution": protocol_distribution,  # Chart-friendly format
         "timestamp": datetime.utcnow().isoformat(),
     }
 
