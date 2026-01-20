@@ -4,6 +4,22 @@
  * Strictly typed interfaces matching the FastAPI backend schemas.
  */
 
+export interface BotExtraData {
+  ip_reputation?: {
+    abuse_score: number;
+    isp: string;
+    country: string;
+    usage_type: string;
+    is_public: boolean;
+    domain?: string;
+  };
+  virustotal?: {
+    malicious: number;
+    total_vendors: number;
+    detection_names: string[];
+  };
+}
+
 export interface Bot {
   id: number;
   ip_address: string;
